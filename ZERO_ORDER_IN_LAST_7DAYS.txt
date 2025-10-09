@@ -1,0 +1,49 @@
+ZERO_ORDER_IN_LAST_7DAYS
+
+WITH windowed AS (
+  SELECT
+    __time,
+    order_ref_id,
+    order_status,
+    payment_ref_id,
+    UPPER(culture_code) AS culture_code,
+    product_publisher_id,
+    changed_by,
+    "order_items.action_0" AS action_0
+  FROM "pse-order-prod"
+  WHERE __time >= DATE_TRUNC('day', CURRENT_TIMESTAMP) - INTERVAL '8' DAY
+    AND __time <  DATE_TRUNC('day', CURRENT_TIMESTAMP)           -- last 7 full days, exclude today
+    AND UPPER(culture_code) IN ( 'DE-DE','EN-MY','EN-ZW','ES-MX','ES-PA','NL-NL','HU-HU','IT-IT','FR-FR','PL-PL','EN-IN','EN-SG','EN-TT' )
+),
+t1 AS (
+  SELECT *
+  FROM windowed
+),
+joined_orders AS (
+  SELECT 
+    f.__time,
+    f.order_ref_id,
+    i.action_0,
+    f.product_publisher_id,
+    f.changed_by,
+    f.culture_code
+  FROM t1 f
+  INNER JOIN t1 i
+    ON f.order_ref_id = i.order_ref_id
+   AND f.order_status = 'FULFILLED'
+   AND f.payment_ref_id IS NOT NULL
+   AND i.order_status = 'INITIATED'
+),
+filtered_orders AS (
+  SELECT *
+  FROM joined_orders
+  WHERE ( action_0 IS NULL   OR action_0 IN ('CREATE', 'RENEW', 'Renew', 'UPGRADE', 'UPSELL', 'DOWNGRADE') )
+    AND product_publisher_id = 'pse_operations_order'
+    AND changed_by IN ('zYS3jVFowmfobAJv8nxNfogpsky3djHq', 'QGF9qSQNUhWDHxZqWvTmGGgpXV5AUWh0')
+)
+SELECT
+  culture_code,
+  COUNT(DISTINCT order_ref_id) / 7.0 AS avg_daily_order_count_last_7_days
+FROM filtered_orders
+GROUP BY culture_code
+ORDER BY culture_code;
