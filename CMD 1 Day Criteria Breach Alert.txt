@@ -1,0 +1,287 @@
+CMD 1 Day Criteria Breach Alert
+
+A : 
+WITH day_window AS (
+  SELECT
+    TIME_SHIFT(TIME_FLOOR(CURRENT_TIMESTAMP, 'P1D', NULL, 'America/Los_Angeles'), 'P1D', -1, 'America/Los_Angeles') AS day_start,
+    TIME_FLOOR(CURRENT_TIMESTAMP, 'P1D', NULL, 'America/Los_Angeles') AS day_end
+),
+cultures AS (
+  SELECT * FROM (VALUES 
+    'CS-CZ','DA-DK','DE-CH','EN-IE','EN-NZ',
+    'ES-CL','ES-PE','FR-CH','JA-JP','NB-NO','PT-BR','SV-SE'
+  ) AS t(culture)
+),
+t1 AS (
+  SELECT
+    __time,
+    order_ref_id,
+    order_status,
+    payment_ref_id,
+    culture_code,
+    product_publisher_id,
+    changed_by,
+    "order_items.action_0" AS action_0
+  FROM "pse-order-prod", day_window
+  WHERE __time >= day_window.day_start
+    AND __time <  day_window.day_end
+    AND UPPER(culture_code) IN (SELECT culture FROM cultures)
+),
+joined_orders AS (
+  SELECT 
+    f.__time,
+    f.order_ref_id,
+    i.action_0,
+    f.product_publisher_id,
+    f.changed_by,
+    UPPER(f.culture_code) AS culture
+  FROM t1 f
+  INNER JOIN t1 i
+    ON f.order_ref_id = i.order_ref_id
+   AND f.order_status = 'FULFILLED'
+   AND f.payment_ref_id IS NOT NULL
+   AND i.order_status = 'INITIATED'
+),
+filtered AS (
+  SELECT *
+  FROM joined_orders
+  WHERE (action_0 IS NULL OR UPPER(action_0) IN ('CREATE','RENEW','UPGRADE','UPSELL','DOWNGRADE','NEW'))
+    AND product_publisher_id = 'pse_operations_order'
+    AND changed_by IN ('zYS3jVFowmfobAJv8nxNfogpsky3djHq','QGF9qSQNUhWDHxZqWvTmGGgpXV5AUWh0','RHS9QkCwc5soOlrWhu21dKA2kxfCUCmw')
+),
+aggregated AS (
+  SELECT
+    culture,
+    COUNT(DISTINCT order_ref_id) AS total_orders
+  FROM filtered
+  GROUP BY culture
+)
+SELECT
+  TIME_FORMAT(dw.day_start, 'YYYY-MM-dd', 'America/Los_Angeles') AS order_date,
+  c.culture,
+  COALESCE(a.total_orders, 0) AS total_orders
+FROM cultures c
+CROSS JOIN day_window dw
+LEFT JOIN aggregated a ON c.culture = a.culture
+ORDER BY order_date, c.culture;
+
+B: 
+WITH day_window AS (
+  SELECT
+    TIME_SHIFT(TIME_FLOOR(CURRENT_TIMESTAMP, 'P1D', NULL, 'America/Los_Angeles'), 'P1D', -8, 'America/Los_Angeles') AS day_start,
+    TIME_SHIFT(TIME_FLOOR(CURRENT_TIMESTAMP, 'P1D', NULL, 'America/Los_Angeles'), 'P1D', -7, 'America/Los_Angeles') AS day_end
+),
+t1 AS (
+  SELECT
+    __time,
+    order_ref_id,
+    order_status,
+    payment_ref_id,
+    culture_code,
+    product_publisher_id,
+    changed_by,
+    "order_items.action_0" AS action_0
+  FROM "pse-order-prod", day_window
+  WHERE __time >= day_window.day_start
+    AND __time <  day_window.day_end
+    AND UPPER(culture_code) IN ('CS-CZ','DA-DK','DE-CH','DE-DE','EN-IE','EN-NZ','ES-CL','ES-PE','FR-CH','JA-JP','NB-NO','PT-BR','SV-SE')
+),
+joined_orders AS (
+  SELECT 
+    f.__time,
+    f.order_ref_id,
+    i.action_0,
+    f.product_publisher_id,
+    f.changed_by,
+    UPPER(f.culture_code) AS culture
+  FROM t1 f
+  INNER JOIN t1 i
+    ON f.order_ref_id = i.order_ref_id
+   AND f.order_status = 'FULFILLED'
+   AND f.payment_ref_id IS NOT NULL
+   AND i.order_status = 'INITIATED'
+),
+filtered AS (
+  SELECT *
+  FROM joined_orders
+  WHERE (action_0 IS NULL) OR action_0 IN ('CREATE','RENEW','Renew','UPGRADE','UPSELL','DOWNGRADE','NEW','new')
+    AND product_publisher_id = 'pse_operations_order'
+    AND changed_by IN ('zYS3jVFowmfobAJv8nxNfogpsky3djHq','QGF9qSQNUhWDHxZqWvTmGGgpXV5AUWh0','RHS9QkCwc5soOlrWhu21dKA2kxfCUCmw')
+)
+SELECT
+  culture,
+  COUNT(DISTINCT order_ref_id) AS total_orders
+FROM filtered, day_window
+GROUP BY
+  TIME_FORMAT(day_window.day_start, 'YYYY-MM-dd', 'America/Los_Angeles'),
+  culture
+ORDER BY
+  TIME_FORMAT(day_window.day_start, 'YYYY-MM-dd', 'America/Los_Angeles'),
+  culture;
+
+
+B2 : WITH day_window AS (
+  SELECT
+    TIME_SHIFT(TIME_FLOOR(CURRENT_TIMESTAMP, 'P1D', NULL, 'America/Los_Angeles'), 'P1D', -15, 'America/Los_Angeles') AS day_start,
+    TIME_SHIFT(TIME_FLOOR(CURRENT_TIMESTAMP, 'P1D', NULL, 'America/Los_Angeles'), 'P1D', -14, 'America/Los_Angeles') AS day_end
+),
+t1 AS (
+  SELECT
+    __time,
+    order_ref_id,
+    order_status,
+    payment_ref_id,
+    culture_code,
+    product_publisher_id,
+    changed_by,
+    "order_items.action_0" AS action_0
+  FROM "pse-order-prod", day_window
+  WHERE __time >= day_window.day_start
+    AND __time <  day_window.day_end
+    AND UPPER(culture_code) IN ('CS-CZ','DA-DK','DE-CH','DE-DE','EN-IE','EN-NZ','ES-CL','ES-PE','FR-CH','JA-JP','NB-NO','PT-BR','SV-SE')
+),
+joined_orders AS (
+  SELECT 
+    f.__time,
+    f.order_ref_id,
+    i.action_0,
+    f.product_publisher_id,
+    f.changed_by,
+    UPPER(f.culture_code) AS culture
+  FROM t1 f
+  INNER JOIN t1 i
+    ON f.order_ref_id = i.order_ref_id
+   AND f.order_status = 'FULFILLED'
+   AND f.payment_ref_id IS NOT NULL
+   AND i.order_status = 'INITIATED'
+),
+filtered AS (
+  SELECT *
+  FROM joined_orders
+  WHERE (action_0 IS NULL) OR action_0 IN ('CREATE','RENEW','Renew','UPGRADE','UPSELL','DOWNGRADE','NEW','new')
+    AND product_publisher_id = 'pse_operations_order'
+    AND changed_by IN ('zYS3jVFowmfobAJv8nxNfogpsky3djHq','QGF9qSQNUhWDHxZqWvTmGGgpXV5AUWh0','RHS9QkCwc5soOlrWhu21dKA2kxfCUCmw')
+)
+SELECT
+  culture,
+  COUNT(DISTINCT order_ref_id) AS total_orders
+FROM filtered, day_window
+GROUP BY
+  TIME_FORMAT(day_window.day_start, 'YYYY-MM-dd', 'America/Los_Angeles'),
+  culture
+ORDER BY
+  TIME_FORMAT(day_window.day_start, 'YYYY-MM-dd', 'America/Los_Angeles'),
+  culture;
+
+B3 : 
+WITH day_window AS (
+  SELECT
+    TIME_SHIFT(TIME_FLOOR(CURRENT_TIMESTAMP, 'P1D', NULL, 'America/Los_Angeles'), 'P1D', -22, 'America/Los_Angeles') AS day_start,
+    TIME_SHIFT(TIME_FLOOR(CURRENT_TIMESTAMP, 'P1D', NULL, 'America/Los_Angeles'), 'P1D', -21, 'America/Los_Angeles') AS day_end
+),
+t1 AS (
+  SELECT
+    __time,
+    order_ref_id,
+    order_status,
+    payment_ref_id,
+    culture_code,
+    product_publisher_id,
+    changed_by,
+    "order_items.action_0" AS action_0
+  FROM "pse-order-prod", day_window
+  WHERE __time >= day_window.day_start
+    AND __time <  day_window.day_end
+    AND UPPER(culture_code) IN ('CS-CZ','DA-DK','DE-CH','DE-DE','EN-IE','EN-NZ','ES-CL','ES-PE','FR-CH','JA-JP','NB-NO','PT-BR','SV-SE')
+),
+joined_orders AS (
+  SELECT 
+    f.__time,
+    f.order_ref_id,
+    i.action_0,
+    f.product_publisher_id,
+    f.changed_by,
+    UPPER(f.culture_code) AS culture
+  FROM t1 f
+  INNER JOIN t1 i
+    ON f.order_ref_id = i.order_ref_id
+   AND f.order_status = 'FULFILLED'
+   AND f.payment_ref_id IS NOT NULL
+   AND i.order_status = 'INITIATED'
+),
+filtered AS (
+  SELECT *
+  FROM joined_orders
+  WHERE (action_0 IS NULL) OR action_0 IN ('CREATE','RENEW','Renew','UPGRADE','UPSELL','DOWNGRADE','NEW','new')
+    AND product_publisher_id = 'pse_operations_order'
+    AND changed_by IN ('zYS3jVFowmfobAJv8nxNfogpsky3djHq','QGF9qSQNUhWDHxZqWvTmGGgpXV5AUWh0','RHS9QkCwc5soOlrWhu21dKA2kxfCUCmw')
+)
+SELECT
+  culture,
+  COUNT(DISTINCT order_ref_id) AS total_orders
+FROM filtered, day_window
+GROUP BY
+  TIME_FORMAT(day_window.day_start, 'YYYY-MM-dd', 'America/Los_Angeles'),
+  culture
+ORDER BY
+  TIME_FORMAT(day_window.day_start, 'YYYY-MM-dd', 'America/Los_Angeles'),
+  culture;
+
+B4 : 
+WITH day_window AS (
+  SELECT
+    TIME_SHIFT(TIME_FLOOR(CURRENT_TIMESTAMP, 'P1D', NULL, 'America/Los_Angeles'), 'P1D', -29, 'America/Los_Angeles') AS day_start,
+    TIME_SHIFT(TIME_FLOOR(CURRENT_TIMESTAMP, 'P1D', NULL, 'America/Los_Angeles'), 'P1D', -28, 'America/Los_Angeles') AS day_end
+),
+t1 AS (
+  SELECT
+    __time,
+    order_ref_id,
+    order_status,
+    payment_ref_id,
+    culture_code,
+    product_publisher_id,
+    changed_by,
+    "order_items.action_0" AS action_0
+  FROM "pse-order-prod", day_window
+  WHERE __time >= day_window.day_start
+    AND __time <  day_window.day_end
+    AND UPPER(culture_code) IN ('CS-CZ','DA-DK','DE-CH','DE-DE','EN-IE','EN-NZ','ES-CL','ES-PE','FR-CH','JA-JP','NB-NO','PT-BR','SV-SE')
+),
+joined_orders AS (
+  SELECT 
+    f.__time,
+    f.order_ref_id,
+    i.action_0,
+    f.product_publisher_id,
+    f.changed_by,
+    UPPER(f.culture_code) AS culture
+  FROM t1 f
+  INNER JOIN t1 i
+    ON f.order_ref_id = i.order_ref_id
+   AND f.order_status = 'FULFILLED'
+   AND f.payment_ref_id IS NOT NULL
+   AND i.order_status = 'INITIATED'
+),
+filtered AS (
+  SELECT *
+  FROM joined_orders
+  WHERE (action_0 IS NULL) OR action_0 IN ('CREATE','RENEW','Renew','UPGRADE','UPSELL','DOWNGRADE','NEW','new')
+    AND product_publisher_id = 'pse_operations_order'
+    AND changed_by IN ('zYS3jVFowmfobAJv8nxNfogpsky3djHq','QGF9qSQNUhWDHxZqWvTmGGgpXV5AUWh0','RHS9QkCwc5soOlrWhu21dKA2kxfCUCmw' )
+)
+SELECT
+  
+  culture,
+  COUNT(DISTINCT order_ref_id) AS total_orders
+FROM filtered, day_window
+GROUP BY
+  TIME_FORMAT(day_window.day_start, 'YYYY-MM-dd', 'America/Los_Angeles'),
+  culture
+ORDER BY
+  TIME_FORMAT(day_window.day_start, 'YYYY-MM-dd', 'America/Los_Angeles'),
+  culture;
+
+
+floor(abs(($B1 + $B2 + $B3 +$B4 ) /4) * 0.75)
+$A < $F
