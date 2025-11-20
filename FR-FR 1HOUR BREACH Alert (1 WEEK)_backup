@@ -1,0 +1,233 @@
+FR-FR 1HOUR BREACH Alert (1 WEEK)
+
+WITH time_window AS (
+  SELECT 
+    DATE_TRUNC('hour', CURRENT_TIMESTAMP - INTERVAL '1' HOUR) AS start_time,
+    DATE_TRUNC('hour', CURRENT_TIMESTAMP) AS end_time
+),
+t1 AS (
+  SELECT
+    __time,
+    order_ref_id,
+    order_status,
+    payment_ref_id,
+    culture_code,
+    product_publisher_id,
+    changed_by,
+    "order_items.action_0" AS action_0
+  FROM "pse-order-prod", time_window
+  WHERE __time >= time_window.start_time
+    AND __time < time_window.end_time
+    AND UPPER(culture_code) = 'FR-FR'
+),
+joined_orders AS (
+  SELECT 
+    f.__time,
+    f.order_ref_id,
+    i.action_0,
+    f.product_publisher_id,
+    f.changed_by
+  FROM t1 f
+  INNER JOIN t1 i
+    ON f.order_ref_id = i.order_ref_id
+   AND f.order_status = 'FULFILLED'
+   AND f.payment_ref_id IS NOT NULL
+   AND i.order_status = 'INITIATED'
+)
+SELECT
+  TIME_FORMAT(__time, 'YYYY-MM-dd HH', 'America/Los_Angeles') AS alert_hour,
+  COUNT(DISTINCT order_ref_id) AS order_count
+FROM joined_orders
+WHERE action_0 IN ('CREATE', 'RENEW', 'Renew', 'UPGRADE', 'UPSELL', 'DOWNGRADE', 'New' , 'NEW' )
+  AND product_publisher_id = 'pse_operations_order'
+  AND changed_by IN ('zYS3jVFowmfobAJv8nxNfogpsky3djHq', 'QGF9qSQNUhWDHxZqWvTmGGgpXV5AUWh0')
+GROUP BY 1
+ORDER BY alert_hour DESC;
+
+
+
+
+WITH reference_hour AS (
+  SELECT DATE_TRUNC('hour', CURRENT_TIMESTAMP - INTERVAL '1' HOUR) AS target_hour
+),
+t1 AS (
+  SELECT
+    __time,
+    order_ref_id,
+    order_status,
+    payment_ref_id,
+    culture_code,
+    product_publisher_id,
+    changed_by,
+    "order_items.action_0" AS action_0
+  FROM "pse-order-prod", reference_hour
+  WHERE UPPER(culture_code) = 'FR-FR'
+    AND TIME_FORMAT(__time, 'HH', 'America/Los_Angeles') = TIME_FORMAT(reference_hour.target_hour, 'HH', 'America/Los_Angeles')
+    -- Only same day last week, same hour
+    AND __time >= reference_hour.target_hour - INTERVAL '7' DAY
+    AND __time < reference_hour.target_hour - INTERVAL '7' DAY + INTERVAL '1' HOUR
+),
+joined_orders AS (
+  SELECT 
+    f.__time,
+    f.order_ref_id,
+    i.action_0,
+    f.product_publisher_id,
+    f.changed_by
+  FROM t1 f
+  INNER JOIN t1 i
+    ON f.order_ref_id = i.order_ref_id
+   AND f.order_status = 'FULFILLED'
+   AND f.payment_ref_id IS NOT NULL
+   AND i.order_status = 'INITIATED'
+),
+filtered_orders AS (
+  SELECT *
+  FROM joined_orders
+  WHERE action_0 IN ('CREATE', 'RENEW', 'Renew', 'UPGRADE', 'UPSELL', 'DOWNGRADE')
+    AND product_publisher_id = 'pse_operations_order'
+    AND changed_by IN ('zYS3jVFowmfobAJv8nxNfogpsky3djHq', 'QGF9qSQNUhWDHxZqWvTmGGgpXV5AUWh0')
+)
+SELECT
+  COUNT(DISTINCT order_ref_id) AS order_count_same_hour_last_week
+FROM filtered_orders;
+
+
+WITH reference_hour AS (
+  SELECT DATE_TRUNC('hour', CURRENT_TIMESTAMP - INTERVAL '1' HOUR) AS target_hour
+),
+t1 AS (
+  SELECT
+    __time,
+    order_ref_id,
+    order_status,
+    payment_ref_id,
+    culture_code,
+    product_publisher_id,
+    changed_by,
+    "order_items.action_0" AS action_0
+  FROM "pse-order-prod", reference_hour
+  WHERE UPPER(culture_code) = 'FR-FR'
+    AND TIME_FORMAT(__time, 'HH', 'America/Los_Angeles') = TIME_FORMAT(reference_hour.target_hour, 'HH', 'America/Los_Angeles')
+    -- Only same day last week, same hour
+    AND __time >= reference_hour.target_hour - INTERVAL '14' DAY
+    AND __time < reference_hour.target_hour - INTERVAL '14' DAY + INTERVAL '1' HOUR
+),
+joined_orders AS (
+  SELECT 
+    f.__time,
+    f.order_ref_id,
+    i.action_0,
+    f.product_publisher_id,
+    f.changed_by
+  FROM t1 f
+  INNER JOIN t1 i
+    ON f.order_ref_id = i.order_ref_id
+   AND f.order_status = 'FULFILLED'
+   AND f.payment_ref_id IS NOT NULL
+   AND i.order_status = 'INITIATED'
+),
+filtered_orders AS (
+  SELECT *
+  FROM joined_orders
+  WHERE action_0 IN ('CREATE', 'RENEW', 'Renew', 'UPGRADE', 'UPSELL', 'DOWNGRADE')
+    AND product_publisher_id = 'pse_operations_order'
+    AND changed_by IN ('zYS3jVFowmfobAJv8nxNfogpsky3djHq', 'QGF9qSQNUhWDHxZqWvTmGGgpXV5AUWh0')
+)
+SELECT
+  COUNT(DISTINCT order_ref_id) AS order_count_same_hour_last_week
+FROM filtered_orders;
+
+
+WITH reference_hour AS (
+  SELECT DATE_TRUNC('hour', CURRENT_TIMESTAMP - INTERVAL '1' HOUR) AS target_hour
+),
+t1 AS (
+  SELECT
+    __time,
+    order_ref_id,
+    order_status,
+    payment_ref_id,
+    culture_code,
+    product_publisher_id,
+    changed_by,
+    "order_items.action_0" AS action_0
+  FROM "pse-order-prod", reference_hour
+  WHERE UPPER(culture_code) = 'FR-FR'
+    AND TIME_FORMAT(__time, 'HH', 'America/Los_Angeles') = TIME_FORMAT(reference_hour.target_hour, 'HH', 'America/Los_Angeles')
+    -- Only same day last week, same hour
+    AND __time >= reference_hour.target_hour - INTERVAL '21' DAY
+    AND __time < reference_hour.target_hour - INTERVAL '21' DAY + INTERVAL '1' HOUR
+),
+joined_orders AS (
+  SELECT 
+    f.__time,
+    f.order_ref_id,
+    i.action_0,
+    f.product_publisher_id,
+    f.changed_by
+  FROM t1 f
+  INNER JOIN t1 i
+    ON f.order_ref_id = i.order_ref_id
+   AND f.order_status = 'FULFILLED'
+   AND f.payment_ref_id IS NOT NULL
+   AND i.order_status = 'INITIATED'
+),
+filtered_orders AS (
+  SELECT *
+  FROM joined_orders
+  WHERE action_0 IN ('CREATE', 'RENEW', 'Renew', 'UPGRADE', 'UPSELL', 'DOWNGRADE')
+    AND product_publisher_id = 'pse_operations_order'
+    AND changed_by IN ('zYS3jVFowmfobAJv8nxNfogpsky3djHq', 'QGF9qSQNUhWDHxZqWvTmGGgpXV5AUWh0')
+)
+SELECT
+  COUNT(DISTINCT order_ref_id) AS order_count_same_hour_last_week
+FROM filtered_orders;
+
+
+
+WITH reference_hour AS (
+  SELECT DATE_TRUNC('hour', CURRENT_TIMESTAMP - INTERVAL '1' HOUR) AS target_hour
+),
+t1 AS (
+  SELECT
+    __time,
+    order_ref_id,
+    order_status,
+    payment_ref_id,
+    culture_code,
+    product_publisher_id,
+    changed_by,
+    "order_items.action_0" AS action_0
+  FROM "pse-order-prod", reference_hour
+  WHERE UPPER(culture_code) = 'FR-FR'
+    AND TIME_FORMAT(__time, 'HH', 'America/Los_Angeles') = TIME_FORMAT(reference_hour.target_hour, 'HH', 'America/Los_Angeles')
+    -- Only same day last week, same hour
+    AND __time >= reference_hour.target_hour - INTERVAL '28' DAY
+    AND __time < reference_hour.target_hour - INTERVAL '28' DAY + INTERVAL '1' HOUR
+),
+joined_orders AS (
+  SELECT 
+    f.__time,
+    f.order_ref_id,
+    i.action_0,
+    f.product_publisher_id,
+    f.changed_by
+  FROM t1 f
+  INNER JOIN t1 i
+    ON f.order_ref_id = i.order_ref_id
+   AND f.order_status = 'FULFILLED'
+   AND f.payment_ref_id IS NOT NULL
+   AND i.order_status = 'INITIATED'
+),
+filtered_orders AS (
+  SELECT *
+  FROM joined_orders
+  WHERE action_0 IN ('CREATE', 'RENEW', 'Renew', 'UPGRADE', 'UPSELL', 'DOWNGRADE')
+    AND product_publisher_id = 'pse_operations_order'
+    AND changed_by IN ('zYS3jVFowmfobAJv8nxNfogpsky3djHq', 'QGF9qSQNUhWDHxZqWvTmGGgpXV5AUWh0')
+)
+SELECT
+  COUNT(DISTINCT order_ref_id) AS order_count_same_hour_last_week
+FROM filtered_orders;
+
